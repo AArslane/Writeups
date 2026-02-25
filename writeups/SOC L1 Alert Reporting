@@ -1,0 +1,65 @@
+# SOC L1 - Alert Reporting & Escalation
+
+## Informations
+- Plateforme : TryHackMe
+- Date : 19/02/2026
+
+## Objectifs
+- Apprendre à documenter une alerte SOC
+- Comprendre les critères d'escalade L1 → L2
+- Maîtriser la méthode des 5W
+
+## Concepts clés
+
+### La méthode des 5W
+Toute alerte SOC doit répondre à :
+- **Who** : qui est impliqué ?
+- **What** : quelle action a été effectuée ?
+- **When** : timestamp précis
+- **Where** : quel système/IP/device ?
+- **Why** : pourquoi cette conclusion ?
+
+### SPF et DKIM
+Deux mécanismes d'authentification email essentiels.
+
+**SPF Fail** = l'IP expéditrice n'est pas autorisée par le domaine
+**DKIM Fail** = l'email n'est pas signé cryptographiquement
+
+SPF Fail + DKIM Fail simultanés = phishing jusqu'à preuve du contraire.
+Ne jamais faire confiance au nom affiché sans vérifier ces checks.
+
+## Alerte traitée : Phishing Email
+
+### Contexte
+Email reçu par Eddie Huffman (IT Manager) depuis 
+support@microsoft.com avec pièce jointe REPORT.rar.
+
+### Indicateurs de compromission (IoC)
+- SPF Fail + DKIM Fail → spoofing confirmé
+- Mots clés urgents : "600% price increase", 
+  "urgent notice", "download the report"
+- Pièce jointe .rar → vecteur d'attaque courant
+
+### Verdict
+**True Positive** — escalade L2 requise
+
+## Critères d'escalade L1 → L2
+1. Attaque majeure nécessitant investigation DFIR
+2. Remédiation requise (isolation, suppression malware)
+3. Communication externe nécessaire
+4. Alerte incomprise par le L1
+
+## Leçon principale
+Un nom de domaine légitime affiché ne garantit pas 
+l'authenticité de l'expéditeur. SPF et DKIM sont les 
+seuls indicateurs fiables d'authentification email.
+
+## Ce que j'ai appris
+La documentation est le cœur du travail d'un analyste SOC L1
+un rapport bien rédigé facilite directement le travail du L2 
+et accélère la détection des menaces réelles.
+
+Distinguer un True Positive d'un False Positive est une 
+compétence fondamentale, mais en cas de doute, l'escalade 
+reste toujours la bonne décision. Une alerte manquée peut 
+avoir des conséquences bien plus graves qu'une escalade inutile.
