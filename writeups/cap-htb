@@ -1,0 +1,93 @@
+# Cap — HackTheBox Writeup
+
+**Difficulté :** Easy  
+**OS :** Linux  
+**Vulnérabilités :** IDOR, FTP Cleartext Credentials, 
+                    Linux Capabilities (cap_setuid)
+
+Cap est une machine Linux exposant un dashboard administratif 
+via HTTP permettant de visualiser des captures réseau. 
+Un mauvais contrôle d'autorisation côté serveur permet 
+d'exploiter une vulnérabilité IDOR pour accéder aux captures 
+d'autres utilisateurs. L'analyse du trafic FTP révèle des 
+credentials en clair, permettant un accès SSH. 
+L'escalade de privilèges est obtenue via cap_setuid 
+sur le binaire python3.8.
+
+---
+
+## Reconnaissance
+
+**Commande :**
+nmap -Pn -sV -sC <IP>
+
+**Résultats :**
+| Port | Service | Info |
+|------|---------|------|
+| 21   | FTP     | Transfert de fichiers |
+| 22   | SSH     | Accès distant |
+| 80   | HTTP    | Interface web |
+
+`-sV` détecte les versions des services en cours d'exécution.  
+`-sC` lance les scripts Nmap par défaut — utile notamment pour 
+détecter une connexion anonyme FTP.
+
+Ces trois ports suggèrent deux vecteurs d'attaque potentiels : 
+une interface web à explorer et un service FTP pouvant contenir 
+des fichiers sensibles.
+
+---
+
+## Exploitation Web — IDOR
+
+En accédant au port 80, je découvre un dashboard affichant 
+des snapshots de sécurité. L'URL suit le pattern `/data/<id>`.
+
+En modifiant manuellement l'ID, j'accède aux snapshots 
+d'autres utilisateurs — ce qui confirme une vulnérabilité IDOR.
+
+**Vulnérabilité : IDOR (Insecure Direct Object Reference)**  
+L'application fait confiance à l'ID fourni par l'utilisateur 
+sans vérifier ses droits d'accès côté serveur.
+
+L'ID `/data/0` révèle un fichier pcap particulièrement sensible.
+
+---
+
+## Analyse du pcap — Wireshark
+
+En ouvrant le fichier pcap avec Wireshark, les credentials FTP 
+apparaissent en clair.
+
+**Raison :** FTP ne chiffre pas ses communications — 
+identifiants et données transitent en plaintext.
+
+Ces credentials sont ensuite réutilisés pour une connexion SSH 
+(réutilisation de mot de passe).
+
+---
+
+## Escalade de Privilèges — Linux Capabilities
+
+Une fois connecté en SSH, je recherche des vecteurs 
+d'escalade de privilèges via les capabilities Linux.
+
+**Commande :**
+getcap -r / 2>/dev/null
+
+**Découverte :**
+/usr/bin/python3.8 = cap_setuid+ep
+
+`cap_setuid` permet à python3.8 de changer son UID — 
+contrairement au SUID qui donne tous les droits root, 
+les capabilities accordent un pouvoir spécifique et limité.
+
+**Exploitation (via GTFOBins) :**
+python3.8 -c 'import os; os.setuid(0); os.system("/bin/bash")'
+
+- `os.setuid(0)` → change l'UID vers 0 (root) 
+  grâce à cap_setuid
+- `os.system("/bin/bash")` → spawn un shell bash 
+  avec ces privilèges
+
+**Résultat : shell root obtenu → flag lu.**
